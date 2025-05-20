@@ -1,0 +1,22 @@
+{
+  "name": "campus-tour-app",
+  "version": "1.0.0",
+  "description": "A virtual campus tour application with user authentication and 3D models",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongoose": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^8.5.1",
+    "cors": "^2.8.5",
+    "body-parser": "^1.19.0"
+  },
+  "engines": {
+    "node": ">=14.x"
+  },
+  "author": "",
+  "license": "ISC"
+}
