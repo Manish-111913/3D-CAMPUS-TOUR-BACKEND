@@ -2,7 +2,7 @@
   "name": "campus-tour-app",
   "version": "1.0.0",
   "description": "A virtual campus tour application with user authentication and 3D models",
-  "main": "src/index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
