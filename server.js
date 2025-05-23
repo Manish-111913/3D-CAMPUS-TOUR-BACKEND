@@ -39,7 +39,7 @@ const User = mongoose.model('User', userSchema);
 const buildingSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String, required: true },
-    modelPath: { type: String } // New field for .glb model path
+    modelPath: { type: String }
 });
 const Building = mongoose.model('Building', buildingSchema);
 
@@ -49,6 +49,18 @@ const eventSchema = new mongoose.Schema({
     date: { type: Date, required: true }
 });
 const Event = mongoose.model('Event', eventSchema);
+
+// Hotspot Schema
+const hotspotSchema = new mongoose.Schema({
+    buildingModel: { type: String, required: true }, // Path to .glb model
+    position: {
+        x: { type: Number, required: true },
+        y: { type: Number, required: true },
+        z: { type: Number, required: true }
+    },
+    content: { type: String }
+});
+const Hotspot = mongoose.model('Hotspot', hotspotSchema);
 
 // Middleware to verify JWT
 const authenticate = async (req, res, next) => {
@@ -271,6 +283,8 @@ app.delete('/api/buildings/:id', authenticate, isAdmin, async (req, res) => {
         if (!building) {
             return res.status(404).json({ message: 'Building not found' });
         }
+        // Delete associated hotspots
+        await Hotspot.deleteMany({ buildingModel: building.modelPath });
         res.json({ message: 'Building deleted successfully' });
     } catch (error) {
         console.error('Delete building error:', error);
@@ -319,7 +333,86 @@ app.delete('/api/events/:id', authenticate, isAdmin, async (req, res) => {
     }
 });
 
+// Get hotspots for a building
+app.get('/api/hotspots/building/:modelPath', authenticate, async (req, res) => {
+    try {
+        const modelPath = decodeURIComponent(req.params.modelPath);
+        const hotspots = await Hotspot.find({ buildingModel: modelPath });
+        console.log('Returning hotspots for model:', modelPath, hotspots);
+        res.json(hotspots);
+    } catch (error) {
+        console.error('Get hotspots error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Add hotspot (admin only)
+app.post('/api/hotspots', authenticate, isAdmin, async (req, res) => {
+    try {
+        const { buildingModel, position, content } = req.body;
+        console.log('Adding hotspot:', { buildingModel, position, content });
+        const hotspot = new Hotspot({
+            buildingModel,
+            position,
+            content
+        });
+        await hotspot.save();
+        res.status(201).json(hotspot);
+    } catch (error) {
+        console.error('Add hotspot error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Update hotspot (admin only)
+app.put('/api/hotspots/:id', authenticate, isAdmin, async (req, res) => {
+    try {
+        const { position, content } = req.body;
+        console.log('Updating hotspot:', { id: req.params.id, position, content });
+        const hotspot = await Hotspot.findByIdAndUpdate(
+            req.params.id,
+            { position, content },
+            { new: true }
+        );
+        if (!hotspot) {
+            return res.status(404).json({ message: 'Hotspot not found' });
+        }
+        res.json(hotspot);
+    } catch (error) {
+        console.error('Update hotspot error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Delete hotspot (admin only)
+app.delete('/api/hotspots/:id', authenticate, isAdmin, async (req, res) => {
+    try {
+        const hotspot = await Hotspot.findByIdAndDelete(req.params.id);
+        console.log('Deleting hotspot:', req.params.id);
+        if (!hotspot) {
+            return res.status(404).json({ message: 'Hotspot not found' });
+        }
+        res.json({ message: 'Hotspot deleted successfully' });
+    } catch (error) {
+        console.error('Delete hotspot error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Delete all hotspots for a building (admin only)
+app.delete('/api/hotspots/building/:modelPath', authenticate, isAdmin, async (req, res) => {
+    try {
+        const modelPath = decodeURIComponent(req.params.modelPath);
+        console.log('Deleting all hotspots for model:', modelPath);
+        await Hotspot.deleteMany({ buildingModel: modelPath });
+        res.json({ message: 'All hotspots deleted successfully' });
+    } catch (error) {
+        console.error('Delete all hotspots error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-});
+}); 
