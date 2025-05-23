@@ -6,12 +6,13 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = express();
-const PORT = 4200;
+const PORT = process.env.PORT || 4200;
+const JWT_SECRET = process.env.JWT_SECRET || 'secret'; // Use environment variable in production
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('public')); // Serve static files (e.g., .glb models)
+app.use(express.static('public')); // Serve static files (e.g., .glb models, assets)
 
 // MongoDB Atlas Connection
 mongoose.connect('mongodb+srv://campusUser:XUaQLcvYPCtRjUZJ@cluster0.gmgp4nb.mongodb.net/campus_tour?retryWrites=true&w=majority&appName=Cluster0', {
@@ -67,10 +68,11 @@ const authenticate = async (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'Unauthorized' });
     try {
-        const decoded = jwt.verify(token, 'secret');
+        const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
         next();
     } catch (error) {
+        console.error('Token verification error:', error);
         res.status(401).json({ message: 'Invalid token' });
     }
 };
@@ -144,7 +146,7 @@ app.post('/api/login', async (req, res) => {
         }
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
-            'secret',
+            JWT_SECRET,
             { expiresIn: '1h' }
         );
         user.rememberMe = rememberMe || false;
@@ -283,7 +285,6 @@ app.delete('/api/buildings/:id', authenticate, isAdmin, async (req, res) => {
         if (!building) {
             return res.status(404).json({ message: 'Building not found' });
         }
-        // Delete associated hotspots
         await Hotspot.deleteMany({ buildingModel: building.modelPath });
         res.json({ message: 'Building deleted successfully' });
     } catch (error) {
@@ -351,6 +352,9 @@ app.post('/api/hotspots', authenticate, isAdmin, async (req, res) => {
     try {
         const { buildingModel, position, content } = req.body;
         console.log('Adding hotspot:', { buildingModel, position, content });
+        if (!buildingModel || !position || !position.x || !position.y || !position.z) {
+            return res.status(400).json({ message: 'Invalid hotspot data' });
+        }
         const hotspot = new Hotspot({
             buildingModel,
             position,
@@ -369,9 +373,17 @@ app.put('/api/hotspots/:id', authenticate, isAdmin, async (req, res) => {
     try {
         const { position, content } = req.body;
         console.log('Updating hotspot:', { id: req.params.id, position, content });
+        const updateData = {};
+        if (position) {
+            if (!position.x || !position.y || !position.z) {
+                return res.status(400).json({ message: 'Invalid position data' });
+            }
+            updateData.position = position;
+        }
+        if (content !== undefined) updateData.content = content;
         const hotspot = await Hotspot.findByIdAndUpdate(
             req.params.id,
-            { position, content },
+            updateData,
             { new: true }
         );
         if (!hotspot) {
@@ -412,7 +424,12 @@ app.delete('/api/hotspots/building/:modelPath', authenticate, isAdmin, async (re
     }
 });
 
+// Catch-all route for unknown endpoints
+app.use((req, res) => {
+    res.status(404).json({ message: 'Endpoint not found' });
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-}); 
+});
