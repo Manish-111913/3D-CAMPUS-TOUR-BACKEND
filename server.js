@@ -10,16 +10,12 @@ const PORT = process.env.PORT || 4200;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret'; // Use environment variable in production
 
 // Middleware
-app.use(cors({
-    origin: '*', // Allow all origins for testing; restrict in production
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public')); // Serve static files (e.g., .glb models, assets)
 
 // MongoDB Atlas Connection
-mongoose.connect('mongodb+srv://campusUser:XUaQLcvYPCtRjUZJ@cluster0.gmgp4nb.mongodb.net/campus_tour?retryWrites=true&w=majority', {
+mongoose.connect('mongodb+srv://campusUser:XUaQLcvYPCtRjUZJ@cluster0.gmgp4nb.mongodb.net/campus_tour?retryWrites=true&w=majority&appName=Cluster0', {
     useNewUrlParser: true,
     useUnifiedTopology: true
 }).then(async () => {
@@ -70,25 +66,20 @@ const Hotspot = mongoose.model('Hotspot', hotspotSchema);
 // Middleware to verify JWT
 const authenticate = async (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-        console.error('No token provided for request:', req.url);
-        return res.status(401).json({ message: 'Unauthorized: No token provided' });
-    }
+    if (!token) return res.status(401).json({ message: 'Unauthorized' });
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
-        console.log('Token verified for user:', decoded.email);
         next();
     } catch (error) {
-        console.error('Token verification error:', error.message);
-        res.status(401).json({ message: 'Invalid or expired token' });
+        console.error('Token verification error:', error);
+        res.status(401).json({ message: 'Invalid token' });
     }
 };
 
 // Middleware to check admin role
 const isAdmin = (req, res, next) => {
     if (req.user.role !== 'admin') {
-        console.error('Admin access required for:', req.url, 'User role:', req.user.role);
         return res.status(403).json({ message: 'Admin access required' });
     }
     next();
@@ -257,9 +248,6 @@ app.post('/api/buildings', authenticate, isAdmin, async (req, res) => {
     try {
         const { name, description, modelPath } = req.body;
         console.log('Adding building:', { name, description, modelPath });
-        if (!name || !description) {
-            return res.status(400).json({ message: 'Name and description are required' });
-        }
         const building = new Building({ name, description, modelPath });
         await building.save();
         res.status(201).json(building);
@@ -274,9 +262,6 @@ app.put('/api/buildings/:id', authenticate, isAdmin, async (req, res) => {
     try {
         const { name, description, modelPath } = req.body;
         console.log('Updating building:', { id: req.params.id, name, description, modelPath });
-        if (!name || !description) {
-            return res.status(400).json({ message: 'Name and description are required' });
-        }
         const building = await Building.findByIdAndUpdate(
             req.params.id,
             { name, description, modelPath },
@@ -325,9 +310,6 @@ app.post('/api/events', authenticate, isAdmin, async (req, res) => {
     try {
         const { name, date } = req.body;
         console.log('Adding event:', { name, date });
-        if (!name || !date) {
-            return res.status(400).json({ message: 'Name and date are required' });
-        }
         const event = new Event({ name, date });
         await event.save();
         res.status(201).json(event);
@@ -444,7 +426,6 @@ app.delete('/api/hotspots/building/:modelPath', authenticate, isAdmin, async (re
 
 // Catch-all route for unknown endpoints
 app.use((req, res) => {
-    console.warn('Unknown endpoint accessed:', req.url);
     res.status(404).json({ message: 'Endpoint not found' });
 });
 
