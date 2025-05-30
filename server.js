@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 4200;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret'; // Use environment variable in production
 
 // Middleware
-const cors = require('cors');
 app.use(cors({
     origin: [
         'http://localhost:3000', // For local development
