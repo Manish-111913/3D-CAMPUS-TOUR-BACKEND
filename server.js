@@ -10,16 +10,7 @@ const PORT = process.env.PORT || 4200;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret'; // Use environment variable in production
 
 // Middleware
-app.use(cors({
-    origin: [
-        'http://localhost:3000', // For local development
-        'https://3d-campus-tour.netlify.app', // Replace with your deployed frontend URL
-        'http://localhost:4200' // If testing locally with a different port
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-}));
+app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public')); // Serve static files (e.g., .glb models, assets)
 
